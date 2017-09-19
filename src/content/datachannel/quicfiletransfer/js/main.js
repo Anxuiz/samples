@@ -163,11 +163,11 @@ function sendFile() {
 
 var readChunks = [];
 var readLength = 0;
-function readFile(stream) {
-  //var chunk = stream.read();
-  var chunk = quicStream.read();
+function readFile(event) {
+  var chunk = event.stream.read();
+  //var chunk = quicStream.read();
   if (chunk.length == 0) {
-    setTimeout(readFile, 1, stream);
+    setTimeout(readFile, 1, event);
     return;
   }
   readChunks.push(chunk);
@@ -179,7 +179,7 @@ function readFile(stream) {
   if (readFileMetadata && readLength >= readFileMetadata.fileSize) {
     handleFileRead();
   } else {
-    setTimeout(readFile, 0, stream);
+    setTimeout(readFile, 0, event);
   }
 }
 
