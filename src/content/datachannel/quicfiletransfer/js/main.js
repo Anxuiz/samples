@@ -40,12 +40,14 @@ var iceTransport = new IceTransport();
 var iceCandidates = [];
 iceTransport.onicecandidate = function(e) {
   iceCandidates.push(e.candidate.candidate);
+  myIceCandidatesTextarea.value = iceCandidates.join('\n');
 };
 
 var otherIceCandidates = [];
 var otherIce = new IceTransport();
 otherIce.onicecandidate = function(e) {
   otherIceCandidates.push(e.candidate.candidate);
+  peerIceCandidatesTextarea.value = otherIceCandidates.join('\n');
 }
 
 function loadIceCandidates(str, ice) {
@@ -59,10 +61,6 @@ function loadIceCandidates(str, ice) {
 }
 
 setTimeout(function() {
-  myIceCandidatesTextarea.value = iceCandidates.join('\n');
-
-  peerIceCandidatesTextarea.value = otherIceCandidates.join('\n');
-
   for (var i = 0; i < iceCandidates.length; i++) {
     otherIce.addRemoteCandidate(iceCandidates[i]);
   }
@@ -169,6 +167,7 @@ function sendFile() {
               window.setTimeout(sliceFile, 0, offset + chunkSize);
             }
             sendProgress.value = offset + e.target.result.byteLength;
+            console.log(offset + e.target.result.byteLength);
           });
         };
       })(file);
