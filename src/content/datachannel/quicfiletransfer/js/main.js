@@ -164,7 +164,7 @@ function sendFile() {
         return function(e) {
           sendOverStream(new Uint8Array(e.target.result), function() {
             if (file.size > offset + e.target.result.byteLength) {
-              window.setTimeout(sliceFile, 0, offset + chunkSize);
+              window.setTimeout(sliceFile, 0, offset + e.target.result.byteLength);
             }
             sendProgress.value = offset + e.target.result.byteLength;
             console.log(offset + e.target.result.byteLength);
