@@ -37,14 +37,16 @@ var statsInterval = null;
 var bitrateMax = 0;
 
 var udpTransport = new UdpTransport();
-myAddressDiv.textContent = udpTransport.getAddress();
+setTimeout(function() {
+  myAddressDiv.textContent = udpTransport.address;
 
-var otherUdp = new UdpTransport();
-peerAddressInput.value = otherUdp.getAddress();
-otherUdp.setDestination(udpTransport.getAddress());
-var otherQuicTransport = new QuicTransport(true, otherUdp);
-otherQuicTransport.connect();
-otherQuicTransport.onstream = readFile;
+  var otherUdp = new UdpTransport();
+  peerAddressInput.value = otherUdp.address;
+  otherUdp.setDestination(udpTransport.address);
+  var otherQuicTransport = new QuicTransport(true, otherUdp);
+  otherQuicTransport.connect();
+  otherQuicTransport.onstream = readFile;
+}, 100);
 
 connectButton.addEventListener('click', handleConnectClick, false);
 
@@ -55,8 +57,12 @@ function handleConnectClick() {
   isServerCheckbox.disabled = true;
   connectButton.disabled = true;
   udpTransport.setDestination(peerAddress);
+  console.log(isServer);
   quicTransport = new QuicTransport(isServer, udpTransport);
-  quicTransport.connect();
+  try {
+    quicTransport.connect();
+  } catch (e) {
+  }
   connectStatusDiv.textContent = "Connecting...";
   if (isServer) {
     quicTransport.onstream = function(stream) {
@@ -69,13 +75,14 @@ function handleConnectClick() {
 }
 
 function tryCreateStream() {
-  var stream = quicTransport.createStream();
-  if (stream) {
-    quicStream = stream;
-    handleConnected();
-  } else {
+  try {
+    var stream = quicTransport.createStream();
+  } catch (e) {
     setTimeout(tryCreateStream, 100);
+    return;
   }
+  quicStream = stream;
+  handleConnected();
 }
 
 function handleConnected() {
@@ -118,24 +125,36 @@ function sendFile() {
       file.lastModifiedDate
   ].join(' '));
   sendProgress.max = file.size;
-  var chunkSize = 16384;
-  var fileReader = new window.FileReader();
-  var sliceFile = function(offset) {
-    var reader = new window.FileReader();
-    reader.onload = (function() {
-      return function(e) {
-        sendOverStream(new Uint8Array(e.target.result), function() {
-          if (file.size > offset + e.target.result.byteLength) {
-            window.setTimeout(sliceFile, 0, offset + chunkSize);
-          }
-          sendProgress.value = offset + e.target.result.byteLength;
-        });
-      };
-    })(file);
-    var slice = file.slice(offset, offset + chunkSize);
-    reader.readAsArrayBuffer(slice);
-  };
-  sliceFile(0);
+  var header = [
+    (file.size >> 24) & 0xff,
+    (file.size >> 16) & 0xff,
+    (file.size >> 8) & 0xff,
+    (file.size) & 0xff,
+    (file.name.length >> 8) & 0xff,
+    (file.name.length) & 0xff];
+  for (var i = 0; i < file.name.length; i++) {
+    header.push(file.name.charCodeAt(i));
+  }
+  sendOverStream(new Uint8Array(header), function() {
+    var chunkSize = 16384;
+    var fileReader = new window.FileReader();
+    var sliceFile = function(offset) {
+      var reader = new window.FileReader();
+      reader.onload = (function() {
+        return function(e) {
+          sendOverStream(new Uint8Array(e.target.result), function() {
+            if (file.size > offset + e.target.result.byteLength) {
+              window.setTimeout(sliceFile, 0, offset + chunkSize);
+            }
+            sendProgress.value = offset + e.target.result.byteLength;
+          });
+        };
+      })(file);
+      var slice = file.slice(offset, offset + chunkSize);
+      reader.readAsArrayBuffer(slice);
+    };
+    sliceFile(0);
+  });
 }
 
 var readChunks = [];
@@ -147,7 +166,6 @@ function readFile(stream) {
     setTimeout(readFile, 1, stream);
     return;
   }
-  console.log('read ' + chunk.length + ' bytes');
   readChunks.push(chunk);
   readLength += chunk.length;
   scanForMetadata();
