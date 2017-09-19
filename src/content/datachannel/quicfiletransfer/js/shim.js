@@ -23,10 +23,11 @@ var VN = new VirtualNetwork();
 class UdpTransport {
   constructor() {
     this.destination = null;
+    this.address = '192.168.1.5:' + VN.allocatePort();
   }
 
   /* DOMString */ getAddress() {
-    return "192.168.1.5:" + VN.allocatePort();
+    return this.address;
   }
 
   /* void */ setDestination(/* DOMString */ address) {
@@ -59,7 +60,7 @@ class QuicTransport {
       remoteTransport.remoteStreams.push(localStream);
       console.assert(this.localStreams.length == remoteTransport.remoteStreams.push());
       if (remoteTransport.onstream) {
-        remoteTransport.onstream(localStream);
+        remoteTransport.onstream(remoteStream);
       }
     }
     return localStream;
@@ -83,8 +84,8 @@ class QuicTransport {
 
 class QuicStream {
   constructor() {
-    this.buffer = "";
-    this.finished = true;
+    this.buffer = new Int8Array(0)
+    this.finished = false;
     this.i = 0;
   }
 
@@ -98,7 +99,11 @@ class QuicStream {
     if (this.i++ % 2 == 0) {
       throw new Error();
     }
-    this.remoteStream += data;
+    //console.log('data len: ' + data.length + ', remote len: ' + this.remote.buffer.length);
+    var newBuf = new Uint8Array(this.remote.buffer.length + data.length);
+    newBuf.set(this.remote.buffer);
+    newBuf.set(data, this.remote.buffer.length);
+    this.remote.buffer = newBuf;
     if (this.onacked) {
       this.onacked();
     }
@@ -106,13 +111,13 @@ class QuicStream {
 
   /* void */ finish(/* optional Uint8Array */ data) {
     this.finished = true;
-    this.remoteStream.finished = true;
+    this.remote.finished = true;
     this.write(data);
     if (this.onfinished) {
       this.onfinished();
     }
-    if (this.remoteStream.onfinished) {
-      this.remoteStream.onfinished();
+    if (this.remote.onfinished) {
+      this.remote.onfinished();
     }
   }
 
@@ -123,7 +128,7 @@ class QuicStream {
 
   /* Uint8Array */ read() {
     var result = this.buffer;
-    this.buffer = "";
+    this.buffer = new Uint8Array(0)
     return result;
   }
 

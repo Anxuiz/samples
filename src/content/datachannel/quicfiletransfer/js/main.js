@@ -7,11 +7,6 @@
  */
 'use strict';
 
-/*var localConnection;
-var remoteConnection;
-var sendChannel;
-var receiveChannel;
-var pcConstraint;*/
 var peerAddress;
 var isServer;
 var udpTransport;
@@ -43,6 +38,13 @@ var bitrateMax = 0;
 
 var udpTransport = new UdpTransport();
 myAddressDiv.textContent = udpTransport.getAddress();
+
+var otherUdp = new UdpTransport();
+peerAddressInput.value = otherUdp.getAddress();
+otherUdp.setDestination(udpTransport.getAddress());
+var otherQuicTransport = new QuicTransport(true, otherUdp);
+otherQuicTransport.connect();
+otherQuicTransport.onstream = readFile;
 
 connectButton.addEventListener('click', handleConnectClick, false);
 
@@ -122,7 +124,7 @@ function sendFile() {
     var reader = new window.FileReader();
     reader.onload = (function() {
       return function(e) {
-        sendOverStream(e.target.result, function() {
+        sendOverStream(new Uint8Array(e.target.result), function() {
           if (file.size > offset + e.target.result.byteLength) {
             window.setTimeout(sliceFile, 0, offset + chunkSize);
           }
@@ -138,10 +140,12 @@ function sendFile() {
 
 var readChunks = [];
 var readLength = 0;
-function readFile() {
-  var chunk = quicStream.read();
+function readFile(stream) {
+  var chunk = stream.read();
+  //var chunk = quicStream.read();
   if (chunk.length == 0) {
-    setTimeout(readFile, 1);
+    setTimeout(readFile, 1, stream);
+    return;
   }
   console.log('read ' + chunk.length + ' bytes');
   readChunks.push(chunk);
@@ -150,7 +154,7 @@ function readFile() {
   if (readFileMetadata && readLength >= readFileMetadata.metaLength + readFileMetadata.fileSize) {
     handleFileRead();
   } else {
-    setTimeout(readFile, 0);
+    setTimeout(readFile, 0, stream);
   }
 }
 
