@@ -170,9 +170,7 @@ function readFile(stream) {
   readChunks.push(chunk);
   readLength += chunk.length;
   scanForMetadata();
-  console.log(readLength);
   if (readFileMetadata) {
-    console.log('hi');
     receiveProgress.value = readLength;
   }
   if (readFileMetadata && readLength >= readFileMetadata.metaLength + readFileMetadata.fileSize) {
@@ -200,6 +198,8 @@ function scanForMetadata() {
         };
         readLength -= readFileMetadata.metaLength;
         receiveProgress.max = reader.filesize;
+        console.log('file metadata');
+        console.log(readFileMetadata);
         readChunks[i] = new Uint8Array(chunk, j + 1);
         for (; i >= 0; i--) {
           readChunks.shift();
