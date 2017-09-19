@@ -37,14 +37,17 @@ var statsInterval = null;
 var bitrateMax = 0;
 
 var udpTransport = new UdpTransport();
+var otherUdp = new UdpTransport();
 setTimeout(function() {
   myAddressDiv.textContent = udpTransport.address;
 
-  var otherUdp = new UdpTransport();
   peerAddressInput.value = otherUdp.address;
   otherUdp.setDestination(udpTransport.address);
   var otherQuicTransport = new QuicTransport(true, otherUdp);
-  otherQuicTransport.connect();
+  try {
+    otherQuicTransport.connect();
+  } catch (e) {
+  }
   otherQuicTransport.onstream = readFile;
 }, 100);
 
@@ -161,8 +164,8 @@ function sendFile() {
 var readChunks = [];
 var readLength = 0;
 function readFile(stream) {
-  var chunk = stream.read();
-  //var chunk = quicStream.read();
+  //var chunk = stream.read();
+  var chunk = quicStream.read();
   if (chunk.length == 0) {
     setTimeout(readFile, 1, stream);
     return;
@@ -173,7 +176,7 @@ function readFile(stream) {
   if (readFileMetadata) {
     receiveProgress.value = readLength;
   }
-  if (readFileMetadata && readLength >= readFileMetadata.metaLength + readFileMetadata.fileSize) {
+  if (readFileMetadata && readLength >= readFileMetadata.fileSize) {
     handleFileRead();
   } else {
     setTimeout(readFile, 0, stream);
