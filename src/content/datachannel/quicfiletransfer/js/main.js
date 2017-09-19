@@ -13,8 +13,8 @@ var udpTransport;
 var quicTransport;
 var quicStream;
 var file;
-var myAddressDiv = document.querySelector('div#myAddress');
-var peerAddressInput = document.querySelector('input#peerAddress');
+var myIceCandidatesTextarea = document.querySelector('textarea#myIceCandidates');
+var peerIceCandidatesTextarea = document.querySelector('textarea#peerIceCandidates');
 var isServerCheckbox = document.querySelector('input#isServer');
 var connectButton = document.querySelector('button#connect');
 var connectStatusDiv = document.querySelector('div#connectStatus');
@@ -36,32 +36,50 @@ var timestampStart;
 var statsInterval = null;
 var bitrateMax = 0;
 
-var udpTransport = new UdpTransport();
-var otherUdp = new UdpTransport();
-setTimeout(function() {
-  myAddressDiv.textContent = udpTransport.address;
+var iceTransport = new IceTransport();
+var iceCandidates = [];
+iceTransport.onicecandidate = function(e) {
+  iceCandidates.push(e.candidate.candidate);
+};
 
-  peerAddressInput.value = otherUdp.address;
-  otherUdp.setDestination(udpTransport.address);
-  var otherQuicTransport = new QuicTransport(true, otherUdp);
-  try {
-    otherQuicTransport.connect();
-  } catch (e) {
+var otherIceCandidates = [];
+var otherIce = new IceTransport();
+otherIce.onicecandidate = function(e) {
+  otherIceCandidates.push(e.candidate.candidate);
+}
+
+function loadIceCandidates(str, ice) {
+  var parts = str.split('\n');
+  var candidates = [];
+  for (var i = 0; i < candidates.length; i++) {
+    if (parts[i]) {
+      ice.addRemoteCandidate(parts[i]);
+    }
   }
+}
+
+setTimeout(function() {
+  myIceCandidatesTextarea.value = iceCandidates.join('\n');
+
+  peerIceCandidatesTextarea.value = otherIceCandidates.join('\n');
+
+  for (var i = 0; i < iceCandidates.length; i++) {
+    otherIce.addRemoteCandidate(iceCandidates[i]);
+  }
+  var otherQuicTransport = new QuicTransport(true, otherIce);
   otherQuicTransport.onstream = readFile;
 }, 100);
 
 connectButton.addEventListener('click', handleConnectClick, false);
 
 function handleConnectClick() {
-  peerAddress = peerAddressInput.value;
-  peerAddressInput.disabled = true;
+  loadIceCandidates(peerIceCandidatesTextarea.value, iceTransport);
+  peerIceCandidatesTextarea.disabled = true;
   isServer = isServerCheckbox.checked;
   isServerCheckbox.disabled = true;
   connectButton.disabled = true;
-  udpTransport.setDestination(peerAddress);
   console.log(isServer);
-  quicTransport = new QuicTransport(isServer, udpTransport);
+  quicTransport = new QuicTransport(isServer, iceTransport);
   try {
     quicTransport.connect();
   } catch (e) {
