@@ -156,7 +156,7 @@ function sendFile() {
     header.push(file.name.charCodeAt(i));
   }
   sendOverStream(new Uint8Array(header), function() {
-    var chunkSize = 16384;
+    var chunkSize = 8196;
     var fileReader = new window.FileReader();
     var sliceFile = function(offset) {
       var reader = new window.FileReader();
